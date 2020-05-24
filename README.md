@@ -4,10 +4,17 @@
 
 ## Dependencies:
 ``` pip3 install --user paramiko ```
+
 or
-``` python3 -m venv venv ```
-``` source venv/bin/activate```
-``` pip install paramiko ```
+
+```
+python3 -m venv venv
+
+source venv/bin/activate
+
+pip install paramiko
+
+```
 
 ### For autoconnection:
 ``` sudo apt-get install -y sshpass ```

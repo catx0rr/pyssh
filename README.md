@@ -3,7 +3,14 @@
 ---
 
 ## Dependencies:
+``` pip3 install --user paramiko ```
+or
+``` python3 -m venv venv ```
+``` source venv/bin/activate```
 ``` pip install paramiko ```
+
+### For autoconnection:
+``` sudo apt-get install -y sshpass ```
 
 ---
 
@@ -31,16 +38,6 @@
   -c, --connect       Auto connect to SSH if the password is specified or found in the password list.
 
 ```
-
----
-
-## Auto connect option
-
-- Dependencies:
-    - Linux
-    - sshpass
-
-``` sudo apt-get install -y sshpass ```
 
 ---
 

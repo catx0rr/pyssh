@@ -58,18 +58,17 @@ def is_ssh_open(hostname, username, password, port, delay):
     except socket.timeout:
 
         print('%s Target host is unreachable. Session timed out.' % (FAILED))
-        return False
+        sys.exit(1)
 
     except socket.gaierror:
         print('%s Unable to find target host.' % (FAILED))
-        return False
+        sys.exit(1)
 
     # Failed Authentication
 
     except paramiko.AuthenticationException as err:
 
         print('%s %s to target host on port %s' % (FAILED, err, port))
-        return False
 
     # Retry with delay if detected
         # Default (Fastest): 1 min
@@ -90,9 +89,8 @@ def is_ssh_open(hostname, username, password, port, delay):
     else:
 
         # Connection established to ssh
-        print('%s Connection Successful to target host on port %s.' % (SUCCESS, port))
+        print('%s Connection Successful to target host on port %s.\n%s Password: %s.' % (SUCCESS, port, SUCCESS, password))
         return True
-
 
 def ssh_execute(hostname, username, password, port, command):
 
@@ -171,7 +169,7 @@ def auto_connect(username, password, port, host):
         )
 
         if check_sshpass == 1:
-            print('%s ERROR: Unable to connect to SSH. sshpass package not found.')
+            print('%s ERROR: Unable to connect. sshpass not found.' % FAILED)
             sys.exit(0)
 
         if check_sshpass == 0:
@@ -298,8 +296,14 @@ def main():
     port = 22
 
     # Check if port is specified
-    if args.port:
-        port = int(args.port)
+
+    try:
+        if args.port:
+            port = int(args.port)
+
+    except ValueError:
+        print('%s Incorrect port specified.' % FAILED)
+        sys.exit(1)
 
     # Initialize password found
     password_found = None

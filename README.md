@@ -17,7 +17,19 @@ pip install paramiko
 ```
 
 ### For autoconnection:
+Default Distro Deb/Ubuntu:
 ``` sudo apt-get install -y sshpass ```
+
+For non-deb distro:
+``` Modify the script to pass the command on line 167 depending on your package manager```
+
+Fedora / Red-hat:
+``` sudo yum install -y sshpass  -- or -- sudo dnf install -y sshpass``` 
+
+Arch Linux:
+``` sudo pacman -S sshpass``
+
+
 
 ---
 

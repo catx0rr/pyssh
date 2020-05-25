@@ -45,7 +45,7 @@ def is_ssh_open(hostname, username, password, port, delay):
 
     ssh = paramiko.SSHClient()
 
-    # Accept unknown host, add to known hosts
+    # Accept unknown host
 
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -100,17 +100,30 @@ def ssh_execute(hostname, username, password, port, command):
     ssh = paramiko.SSHClient()
 
     try:
+        # Accept unknown host
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        # standard connection
         ssh.connect(hostname=hostname, username=username, password=password, port=port, timeout=1)
+
+        # get the stdout  and error
         stdin, stdout, stderr = ssh.exec_command(command)
 
     except:
         pass
 
     else:
+
         output = stdout.readlines()
-        print('%s Command Executed: %s' % (SUCCESS, command))
-        return '\n' + '\r'.join(output)
+        error = stderr.readlines()
+
+        if output:
+            print('%s Command Executed: %s' % (SUCCESS, command))
+            return '\n' + '\r'.join(output)
+
+        if error:
+            print('%s Command Executed: %s' % (SUCCESS, command))
+            return '\n' + '\r'.join(error)
 
 
 def open_passfile(host, username, password_file, port, delay):
@@ -257,15 +270,15 @@ def main():
     elif args.timeout == '4':
         delay = 60
 
-    # 5 minutes timeout
+    # 5 minute timeout
     elif args.timeout == '3':
         delay = 300
 
-    # 15 minutes timeout
+    # 15 minute timeout
     elif args.timeout == '2':
         delay = 900
 
-    # 1 hour timeout
+    # 45 minute timeout
     elif args.timeout == '1':
         delay = 2700
 
@@ -301,7 +314,8 @@ def main():
 
             output = ssh_execute(host, username, passwd, port, command)
 
-            print(output)
+            if output:
+                print(output)
 
         # Connect to ssh using sshpass if --connect is specified
         if connection and passwd:

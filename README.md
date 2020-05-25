@@ -53,7 +53,7 @@ pip install paramiko
 Timeout option: If ssh server detects a bruteforce attack, adds a delay.
 
 - Retry With Delay:
-
+    - Default: (Fastest) 1 second
     - -t 4: (Fast) 1 minute
     - -t 3: (Moderate) 5 minutes
     - -t 2: (Slow) 15 minutes
@@ -66,3 +66,4 @@ Timeout option: If ssh server detects a bruteforce attack, adds a delay.
 - Added execute option to execute command on ssh server
 - Changed passwordlist to -L
 - Changed Slowest -t 1 to 45 mins from 1 hour
+- Added stderr to output on terminal
